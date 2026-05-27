@@ -1,0 +1,41 @@
+# Environment / secrets
+.env
+.env.local
+
+# OS
+.DS_Store
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Local scratch from prior lanes
+artifacts/
+models/
+
+# Run outputs at the repo root: only the three blog-cited dirs are tracked.
+# Any other bee_v0_*/ directory created by a fresh run is ignored. Anchored
+# at the root so nested data dirs like bee_v0_4_temp_ablation/data/bee_v0_4/
+# are not also caught.
+/bee_v0_*/
+!/bee_v0_4_temp_ablation/
+!/bee_v0_4_2_path_diversity/
+!/bee_v0_4_2_trained_t15/
+/modal_fcpc_v0_full_b16*/
+
+# Tarballs of run outputs
+*.tar.gz
+
+# Run logs
+*.log
+nohup.out
+
+# Pre-v0.4 shared output dirs (removed; ignore future re-creation)
+/data/
+/plots/
+/reports/

@@ -1,0 +1,36 @@
+[project]
+name = "random-num-gen"
+version = "0.1.0"
+description = "Measuring random-number bias in instruction-tuned LLMs and correcting it with a small RL pass."
+requires-python = ">=3.10"
+dependencies = [
+  "accelerate",
+  "blake3",
+  "datasets",
+  "huggingface_hub",
+  "numpy",
+  "openai",
+  "pandas",
+  "pillow",
+  "requests",
+  "scikit-learn",
+  "scipy",
+  "sentence-transformers",
+  "sentencepiece",
+  "torch",
+  "tqdm",
+  "transformers",
+]
+
+[project.optional-dependencies]
+# Required for Path 2 (retraining on Tinker). Path 1 (reproducing committed CSVs) does not need these.
+# `tinker_cookbook` is not on PyPI; install from github.com/thinking-machines-lab/tinker-cookbook
+tinker = [
+  "tinker",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100

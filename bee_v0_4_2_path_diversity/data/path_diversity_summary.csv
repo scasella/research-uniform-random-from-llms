@@ -1,0 +1,4 @@
+condition,n_problems,mean_n_correct,mean_distinct_path,distinct_path_95_lo,distinct_path_95_hi,median_distinct_path
+baseline_T1.0,25,9.8,7.4,6.52,8.24,8.0
+baseline_T1.5,25,9.68,8.4,7.68,9.000999999999994,9.0
+trained_T1.0,25,9.8,8.44,7.84,9.08,9.0
