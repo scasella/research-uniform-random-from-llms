@@ -4,6 +4,8 @@ When I asked Qwen3-30B-A3B-Instruct to pick a random integer between 1 and 100, 
 
 Full writeup: [casella.dev/blog_diversity.html](https://casella.dev/blog_diversity.html).
 
+Trained adapter: [scasella91/qwen3-30b-a3b-answer-diversity-lora](https://huggingface.co/scasella91/qwen3-30b-a3b-answer-diversity-lora) on the Hugging Face Hub. Load it on the base model with `peft`; no Tinker account needed.
+
 ## Why
 
 Humans are bad random number generators. Ask a person for a number between 1 and 100 and the answers cluster on 7, 37, 42, 73, and round numbers get quietly avoided. LLMs trained on human text inherit the bias. The question this repo answers is whether a small parameter update can correct it without breaking the model elsewhere.
@@ -100,6 +102,8 @@ PY
 The side-by-side specimens table in the blog comes from `bee_v0_4_temp_ablation/data/bee_v0_4/metrics/bee_v0_4_temp_ablation_cells.csv`. The `top5` column carries the three tasks where both `baseline_T=1.0` and `trained_T=1.0` cells exist.
 
 ## Path 2: retrain from scratch
+
+You do not have to retrain. The trained weights are published as a PEFT adapter at [scasella91/qwen3-30b-a3b-answer-diversity-lora](https://huggingface.co/scasella91/qwen3-30b-a3b-answer-diversity-lora); load it on the base model with `peft` and skip this section. Retrain only if you want to reproduce the training run itself.
 
 This costs about $25 in Tinker compute and needs an H100-class allocation. The training side runs through Tinker; the candidate-scoring evaluation runs locally.
 
