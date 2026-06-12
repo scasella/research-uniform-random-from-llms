@@ -17,6 +17,18 @@ Humans are bad random number generators. Ask a person for a number between 1 and
 - **Reasoning diversity.** On 25 GSM8K problems with k=10 chains of thought, the trained model produced 8.4 distinct calculation paths per problem vs the vanilla baseline's 7.4. Paired gap +1.04 [+0.48, +1.68] CI, 13 wins / 9 ties / 3 losses.
 - **Cost.** About $25 in Tinker compute for the 50-step training run.
 
+## Second family: Llama-3.1-8B-Instruct
+
+The same recipe reproduces on a second, architecturally distinct instruct family (dense `meta-llama/Llama-3.1-8B-Instruct` vs the Qwen MoE), with capability preserved and partial, integer-concentrated transfer. Terminal state `transfer_with_preservation`. Full writeup: [reports/second_family_llama31_8b.md](reports/second_family_llama31_8b.md).
+
+| task | split | instruct baseline TV | trained TV | Δ |
+| --- | --- | --- | --- | --- |
+| `random_int_1_100` | trained | 0.474 | 0.094 | **+0.380** |
+| `random_int_1_10` | held-out | 0.527 | 0.116 | **+0.411** |
+| `random_int_1_1000` | held-out | 0.386 | 0.123 | **+0.263** |
+
+Across all 9 held-out tasks: 5/9 clear the 0.05 transfer threshold, 7/9 improved, mean held-out TV drop +0.105. The same meme-numbers (42/47/73) flatten on Llama, and capability stays flat (MMLU 54.4, GSM8K flat, IFEval +6.7). Transfer is narrower than on Qwen and concentrates on the integer family, because Llama's categorical answer spaces start much closer to uniform (less to correct). Run it yourself with `--model llama_3_1_8b`.
+
 ## How it works
 
 The harness has three pieces.
@@ -141,7 +153,7 @@ The package is `rng_bias`. Required env vars are in `.env.example`. None of them
 
 ## Limitations
 
-- **One model family.** Only Qwen3-30B-A3B-Instruct was tested. The result may not generalize to other instruct models.
+- **Two model families.** The headline was developed on Qwen3-30B-A3B-Instruct and reproduced on a second, architecturally distinct family, Llama-3.1-8B-Instruct (dense), where the on-task flatten and capability preservation held and transfer held *partially* — 5/9 held-out tasks, concentrated on integer ranges. Breadth of cross-task transfer is family-dependent (it tracks how much human-random bias the family carries to begin with), so the broad-transfer claim is strongest for Qwen. See [reports/second_family_llama31_8b.md](reports/second_family_llama31_8b.md). Families beyond these two are untested.
 - **One training task.** Training was run on `random_int_1_100` only. Other training tasks could produce different transfer profiles.
 - **Categorical answer spaces.** The nine transfer tasks are all "pick one of N" categorical. The story for free-text generation tasks is in `rng_bias/v0_4_1/` and was inconclusive. Sentence-embedding distances saturate on short outputs, so the embedding-clustering pilot did not discriminate.
 - **No head-to-head against inference-time methods.** Contrastive decoding, base-model-assisted decoding, and rejection sampling can recover diversity without changing weights. This experiment compares to temperature scaling only.
