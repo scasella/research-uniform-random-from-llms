@@ -22,7 +22,7 @@ import numpy as np
 import pandas as pd
 
 from rng_bias.modeling import load_dotenv
-from rng_bias.v0_4._shared import build_instruct_backend, write_markdown
+from rng_bias.v0_4._shared import build_instruct_backend, resolve_model_config, write_markdown
 from rng_bias.v0_4_2.humaneval import ConditionSpec
 from rng_bias.v0_4_2.gsm8k import sample_completions, score_completions
 from rng_bias.v0_4_2.solution_diversity import compute_cell
@@ -31,6 +31,11 @@ from rng_bias.v0_4_2.solution_diversity import compute_cell
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description="v0.4.2 path-diversity sweep on GSM8K.")
     p.add_argument("--checkpoint-path", required=True)
+    p.add_argument(
+        "--model",
+        default="qwen3_30b_a3b",
+        help="Model-family key from the registry (qwen3_30b_a3b | llama_3_1_8b | qwen3_8b).",
+    )
     p.add_argument("--output-dir", type=Path, default=Path("bee_v0_4_2_path_diversity"))
     p.add_argument("--n-problems", type=int, default=25)
     p.add_argument("--k", type=int, default=10)
@@ -53,9 +58,11 @@ def _bootstrap_ci(values: list[float], *, B: int = 2000, alpha: float = 0.05, se
 
 async def run() -> int:
     args = parse_args()
+    model_config = resolve_model_config(args.model)
     out = args.output_dir
     (out / "data").mkdir(parents=True, exist_ok=True)
     (out / "reports").mkdir(parents=True, exist_ok=True)
+    print(f"Path-diversity target model: {model_config.label}")
 
     print(f"Loading GSM8K test split: {args.n_problems} problems from offset {args.problem_offset}")
     ds = datasets.load_dataset("gsm8k", "main", split="test")
@@ -72,7 +79,7 @@ async def run() -> int:
 
     for cond in conditions:
         print(f"\n--- {cond.label} ({'trained' if cond.model_path else 'vanilla'}) ---", flush=True)
-        backend = build_instruct_backend(model_path=cond.model_path)
+        backend = build_instruct_backend(model_path=cond.model_path, config=model_config)
         try:
             for idx, problem in enumerate(problems):
                 t0 = time.time()
@@ -188,6 +195,8 @@ async def run() -> int:
     # Markdown report
     lines = [
         "# BEE v0.4.2 — Solution-path diversity (GSM8K)",
+        "",
+        f"Target model: `{model_config.instruct_model_id}`.",
         "",
         f"GSM8K test problems {args.problem_offset}-{args.problem_offset + args.n_problems - 1}. "
         f"Conditions: vanilla T=1.0, vanilla T=1.5, trained T=1.0. k={args.k} per cell.",

@@ -16,9 +16,9 @@ from rng_bias.modeling import load_dotenv
 from rng_bias.v0_4._shared import (
     StagePaths,
     build_instruct_backend,
+    resolve_model_config,
     write_json,
     write_markdown,
-    V04_TARGET_MODEL_ID,
 )
 from rng_bias.v0_4.capability_eval import CapabilityEvalConfig, run_capability_eval
 
@@ -35,6 +35,11 @@ _SCORE_KEYS = {
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Capability eval on a trained v0.4 checkpoint.")
     parser.add_argument("--checkpoint-path", required=True, help="tinker:// path of the RL'd checkpoint.")
+    parser.add_argument(
+        "--model",
+        default="qwen3_30b_a3b",
+        help="Model-family key from the registry (qwen3_30b_a3b | llama_3_1_8b | qwen3_8b).",
+    )
     parser.add_argument("--output-dir", type=Path, default=Path("bee_v0_4_capability"))
     parser.add_argument("--mmlu-n", type=int, default=200)
     parser.add_argument("--ifeval-n", type=int, default=100)
@@ -66,8 +71,10 @@ def _eval_backend(backend, *, label: str, args: argparse.Namespace) -> dict[str,
 def main() -> int:
     load_dotenv()
     args = parse_args()
+    model_config = resolve_model_config(args.model)
     paths = StagePaths.from_output_dir(args.output_dir)
     paths.ensure()
+    print(f"Capability eval target model: {model_config.label}")
 
     # 1) Baseline Instruct capabilities
     baseline_row: dict[str, object] | None = None
@@ -79,8 +86,8 @@ def main() -> int:
             baseline_row = sub.iloc[-1].to_dict()
             print("Reused prior baseline_instruct row.")
     if baseline_row is None:
-        print(f"Evaluating baseline `{V04_TARGET_MODEL_ID}`...")
-        backend = build_instruct_backend()
+        print(f"Evaluating baseline `{model_config.instruct_model_id}`...")
+        backend = build_instruct_backend(config=model_config)
         try:
             baseline_row = _eval_backend(backend, label="baseline_instruct", args=args)
         finally:
@@ -91,7 +98,7 @@ def main() -> int:
 
     # 2) Trained checkpoint capabilities
     print(f"Evaluating trained checkpoint `{args.checkpoint_path}`...")
-    backend = build_instruct_backend(model_path=args.checkpoint_path)
+    backend = build_instruct_backend(model_path=args.checkpoint_path, config=model_config)
     try:
         trained_row = _eval_backend(backend, label="trained_stage1", args=args)
     finally:
@@ -135,7 +142,7 @@ def main() -> int:
     lines = [
         "# BEE v0.4 — Capability Eval (Stage 1 checkpoint vs baseline Instruct)",
         "",
-        f"Target model: `{V04_TARGET_MODEL_ID}`",
+        f"Target model: `{model_config.instruct_model_id}`",
         f"Trained checkpoint: `{args.checkpoint_path}`",
         "",
         "## Per-benchmark scores",

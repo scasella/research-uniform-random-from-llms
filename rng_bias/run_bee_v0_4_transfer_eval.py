@@ -17,10 +17,10 @@ from rng_bias.modeling import load_dotenv
 from rng_bias.v0_4._shared import (
     StagePaths,
     build_instruct_backend,
+    resolve_model_config,
     tv_by_task,
     write_json,
     write_markdown,
-    V04_TARGET_MODEL_ID,
 )
 from rng_bias.v0_4.distribution_tasks import HELDOUT_TASKS, TRAIN_TASKS
 from rng_bias.v0_4.eval_lane_a import TaskEvalConfig, lane_a_all_tasks
@@ -29,6 +29,11 @@ from rng_bias.v0_4.eval_lane_a import TaskEvalConfig, lane_a_all_tasks
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Evaluate v0.4 transfer on a trained checkpoint.")
     parser.add_argument("--checkpoint-path", required=True, help="tinker:// path of the RL'd checkpoint.")
+    parser.add_argument(
+        "--model",
+        default="qwen3_30b_a3b",
+        help="Model-family key from the registry (qwen3_30b_a3b | llama_3_1_8b | qwen3_8b).",
+    )
     parser.add_argument("--phase-0-dir", type=Path, default=Path("bee_v0_4_phase_0"))
     parser.add_argument("--output-dir", type=Path, default=Path("bee_v0_4_transfer"))
     parser.add_argument("--paraphrase-count", type=int, default=3)
@@ -65,6 +70,7 @@ def _load_phase_0_baseline(phase_0_dir: Path) -> dict[str, dict[str, float]]:
 def main() -> int:
     load_dotenv()
     args = parse_args()
+    model_config = resolve_model_config(args.model)
     trained_task_ids = {tid.strip() for tid in args.trained_task_ids.split(",") if tid.strip()}
 
     paths = StagePaths.from_output_dir(args.output_dir)
@@ -73,9 +79,10 @@ def main() -> int:
     baseline = _load_phase_0_baseline(args.phase_0_dir)
 
     print(f"Evaluating RL'd checkpoint on all {len(TRAIN_TASKS) + len(HELDOUT_TASKS)} distribution tasks...")
+    print(f"Target model: {model_config.label}")
     print(f"Checkpoint: {args.checkpoint_path}")
 
-    backend = build_instruct_backend(model_path=args.checkpoint_path)
+    backend = build_instruct_backend(model_path=args.checkpoint_path, config=model_config)
     try:
         all_tasks = tuple(list(TRAIN_TASKS) + list(HELDOUT_TASKS))
         eval_config = TaskEvalConfig(paraphrase_count=args.paraphrase_count)
@@ -132,7 +139,7 @@ def main() -> int:
     lines = [
         "# BEE v0.4 — Transfer Evaluation (single-task RL → 10-task panel)",
         "",
-        f"Target model: `{V04_TARGET_MODEL_ID}`",
+        f"Target model: `{model_config.instruct_model_id}`",
         f"Checkpoint: `{args.checkpoint_path}`",
         f"Trained task(s): {', '.join(sorted(trained_task_ids))}",
         "",

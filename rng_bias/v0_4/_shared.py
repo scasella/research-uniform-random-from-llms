@@ -2,7 +2,8 @@
 
 Building blocks reused across Stage 1 / 2 / 3 drivers:
 
-- Backend factories for the v0.4 target (Qwen3-30B-A3B family on Tinker) with
+- Backend factories for the v0.4 target on Tinker, parameterized by a
+  `ModelFamilyConfig` (default: Qwen3-30B-A3B, the published pair) with
   optional `model_path` to point at a trained checkpoint.
 - Baseline-vs-trained Lane-A measurement loops for a panel of tasks.
 - Report writers that produce per-stage markdown summaries.
@@ -19,34 +20,54 @@ from rng_bias.backends import BackendModelSpec
 from rng_bias.backends.tinker_backend import TinkerBackend
 from rng_bias.v0_4.distribution_tasks import DistributionTask, TASK_BY_ID, get_task
 from rng_bias.v0_4.eval_lane_a import TaskEvalConfig, lane_a_all_tasks, lane_a_metrics_row
+from rng_bias.v0_4.model_registry import (
+    ModelFamilyConfig,
+    default_model_config,
+    resolve_model_config,
+)
 
 
-V04_TARGET_MODEL_ID = "Qwen/Qwen3-30B-A3B-Instruct-2507"
-V04_BASE_MODEL_ID = "Qwen/Qwen3-30B-A3B-Base"
-V04_PAIR_ID = "qwen3_30b_a3b"
-V04_FAMILY = "qwen3"
+# Default pair (Qwen3-30B-A3B). Kept as module constants for backward
+# compatibility with callers/reports that reference them directly.
+_DEFAULT_CONFIG = default_model_config()
+V04_TARGET_MODEL_ID = _DEFAULT_CONFIG.instruct_model_id
+V04_BASE_MODEL_ID = _DEFAULT_CONFIG.base_model_id
+V04_PAIR_ID = _DEFAULT_CONFIG.pair_id
+V04_FAMILY = _DEFAULT_CONFIG.family
 
 
-def build_instruct_backend(*, model_path: str | None = None) -> TinkerBackend:
-    spec = BackendModelSpec(
-        model_id=V04_TARGET_MODEL_ID,
-        pair_id=V04_PAIR_ID,
-        status="post_trained",
-        family=V04_FAMILY,
+def instruct_spec(
+    config: ModelFamilyConfig, *, status: str = "post_trained"
+) -> BackendModelSpec:
+    return BackendModelSpec(
+        model_id=config.instruct_model_id,
+        pair_id=config.pair_id,
+        status=status,
+        family=config.family,
         backend_id="tinker",
     )
-    return TinkerBackend(spec, model_path=model_path)
 
 
-def build_base_backend() -> TinkerBackend:
-    spec = BackendModelSpec(
-        model_id=V04_BASE_MODEL_ID,
-        pair_id=V04_PAIR_ID,
+def base_spec(config: ModelFamilyConfig) -> BackendModelSpec:
+    return BackendModelSpec(
+        model_id=config.base_model_id,
+        pair_id=config.pair_id,
         status="base",
-        family=V04_FAMILY,
+        family=config.family,
         backend_id="tinker",
     )
-    return TinkerBackend(spec)
+
+
+def build_instruct_backend(
+    *, model_path: str | None = None, config: ModelFamilyConfig | None = None
+) -> TinkerBackend:
+    config = config or default_model_config()
+    return TinkerBackend(instruct_spec(config), model_path=model_path)
+
+
+def build_base_backend(*, config: ModelFamilyConfig | None = None) -> TinkerBackend:
+    config = config or default_model_config()
+    return TinkerBackend(base_spec(config))
 
 
 def evaluate_panel(
@@ -102,6 +123,11 @@ __all__ = [
     "V04_BASE_MODEL_ID",
     "V04_PAIR_ID",
     "V04_FAMILY",
+    "ModelFamilyConfig",
+    "default_model_config",
+    "resolve_model_config",
+    "instruct_spec",
+    "base_spec",
     "build_instruct_backend",
     "build_base_backend",
     "evaluate_panel",

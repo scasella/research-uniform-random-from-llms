@@ -24,12 +24,14 @@ from rng_bias.backends import BackendModelSpec, make_backend
 from rng_bias.modeling import load_dotenv
 from rng_bias.v0_4.distribution_tasks import TASKS
 from rng_bias.v0_4.eval_lane_a import TaskEvalConfig, lane_a_all_tasks
+from rng_bias.v0_4.model_registry import MODEL_FAMILIES, resolve_model_config
 
 
-V04_TINKER_PAIRS: tuple[tuple[str, str, str, str, str], ...] = (
-    ("qwen3_8b", "Qwen/Qwen3-8B-Base", "Qwen/Qwen3-8B", "qwen3", "tinker"),
-    ("llama_3_1_8b", "meta-llama/Llama-3.1-8B", "meta-llama/Llama-3.1-8B-Instruct", "llama3", "tinker"),
-    ("qwen3_30b_a3b", "Qwen/Qwen3-30B-A3B-Base", "Qwen/Qwen3-30B-A3B-Instruct-2507", "qwen3", "tinker"),
+# Derived from the model registry so the Phase 0 cross-pair diagnostic and the
+# stage backends never drift apart. (pair_id, base_id, instruct_id, family, backend).
+V04_TINKER_PAIRS: tuple[tuple[str, str, str, str, str], ...] = tuple(
+    (config.key, config.base_model_id, config.instruct_model_id, config.family, "tinker")
+    for config in MODEL_FAMILIES.values()
 )
 
 
@@ -43,13 +45,14 @@ class DiagnosticConfig:
 
 
 def _pair_specs(pair_id: str) -> tuple[BackendModelSpec, BackendModelSpec]:
-    for entry in V04_TINKER_PAIRS:
-        pid, base_id, post_id, family, backend_id = entry
-        if pid == pair_id:
-            base_spec = BackendModelSpec(model_id=base_id, pair_id=pid, status="base", family=family, backend_id=backend_id)
-            post_spec = BackendModelSpec(model_id=post_id, pair_id=pid, status="post_trained", family=family, backend_id=backend_id)
-            return base_spec, post_spec
-    raise ValueError(f"Unknown pair_id: {pair_id}. Known: {[p[0] for p in V04_TINKER_PAIRS]}")
+    config = resolve_model_config(pair_id)  # raises ValueError on unknown pair
+    base_spec = BackendModelSpec(
+        model_id=config.base_model_id, pair_id=config.key, status="base", family=config.family, backend_id="tinker"
+    )
+    post_spec = BackendModelSpec(
+        model_id=config.instruct_model_id, pair_id=config.key, status="post_trained", family=config.family, backend_id="tinker"
+    )
+    return base_spec, post_spec
 
 
 def _per_pair_summary(per_task: pd.DataFrame) -> dict[str, object]:

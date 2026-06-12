@@ -17,10 +17,10 @@ from rng_bias.v0_4._shared import (
     StagePaths,
     build_instruct_backend,
     evaluate_panel,
+    resolve_model_config,
     tv_by_task,
     write_json,
     write_markdown,
-    V04_TARGET_MODEL_ID,
 )
 from rng_bias.v0_4.decision import StageGateConfig, stage_1_gate
 from rng_bias.v0_4.eval_lane_a import TaskEvalConfig
@@ -33,6 +33,11 @@ TRAIN_TASK_IDS: tuple[str, ...] = ("random_int_1_100",)
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="BEE v0.4 Stage 1 sanity smoke.")
+    parser.add_argument(
+        "--model",
+        default="qwen3_30b_a3b",
+        help="Model-family key from the registry (qwen3_30b_a3b | llama_3_1_8b | qwen3_8b).",
+    )
     parser.add_argument("--run-name", default="v0_4_stage1")
     parser.add_argument("--output-dir", type=Path, default=Path("bee_v0_4_stage1"))
     parser.add_argument("--n-steps", type=int, default=50)
@@ -49,6 +54,7 @@ def parse_args() -> argparse.Namespace:
 
 def _stage_1_report_lines(
     *,
+    model_id: str,
     baseline_tv: dict[str, float],
     post_tv: dict[str, float],
     gate_status: str,
@@ -58,7 +64,7 @@ def _stage_1_report_lines(
     lines = [
         "# BEE v0.4 — Stage 1 Sanity Smoke",
         "",
-        f"Target model: `{V04_TARGET_MODEL_ID}`",
+        f"Target model: `{model_id}`",
         f"Train task: `{TRAIN_TASK_IDS[0]}`",
         f"Gate result: `{gate_status}`",
         "",
@@ -91,8 +97,10 @@ def _stage_1_report_lines(
 def main() -> int:
     load_dotenv()
     args = parse_args()
+    model_config = resolve_model_config(args.model)
     paths = StagePaths.from_output_dir(args.output_dir)
     paths.ensure()
+    print(f"Stage 1 target model: {model_config.label} ({model_config.instruct_model_id})")
 
     eval_config = TaskEvalConfig(paraphrase_count=args.paraphrase_count)
 
@@ -104,7 +112,7 @@ def main() -> int:
         print(f"Stage 1: reusing baseline CSV at {baseline_csv}")
     else:
         try:
-            backend = build_instruct_backend()
+            backend = build_instruct_backend(config=model_config)
             try:
                 baseline_df = evaluate_panel(backend, TRAIN_TASK_IDS, eval_config=eval_config)
             finally:
@@ -125,6 +133,7 @@ def main() -> int:
             stage=STAGE_NAME,
             output_dir=paths.output_dir,
             run_name=args.run_name,
+            model_name=model_config.instruct_model_id,
             n_steps=args.n_steps,
             batch_size=args.batch_size,
             group_size=args.group_size,
@@ -148,7 +157,7 @@ def main() -> int:
 
     # 3) Post-training eval against the saved checkpoint
     try:
-        trained_backend = build_instruct_backend(model_path=checkpoint_path)
+        trained_backend = build_instruct_backend(model_path=checkpoint_path, config=model_config)
         try:
             post_df = evaluate_panel(trained_backend, TRAIN_TASK_IDS, eval_config=eval_config)
         finally:
@@ -180,6 +189,7 @@ def main() -> int:
         "checkpoint_path": checkpoint_path,
     })
     lines = _stage_1_report_lines(
+        model_id=model_config.instruct_model_id,
         baseline_tv=baseline_tv,
         post_tv=post_tv,
         gate_status=gate_status,
