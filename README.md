@@ -1,25 +1,28 @@
 # Uniform random from an LLM
 
-When I asked Qwen3-30B-A3B-Instruct to pick a random integer between 1 and 100, it put more than 95% of its probability on three numbers: 4, 42, and 47. Fifty steps of GRPO on that one task flattened the distribution, and the fix transferred to nine other random-pick tasks the model was never trained for.
+When I asked Qwen3-30B-A3B-Instruct to pick a random integer between 1 and 100, it put more than 95% of its probability on three numbers: 4, 42, and 47. Fifty steps of GRPO on that one task flattened the distribution. On nine other random-pick tasks the model was not trained on, the distance from uniform over each task's fixed candidate list also fell.
 
 Full writeup: [casella.dev/blog_diversity.html](https://casella.dev/blog_diversity.html).
 
 Trained adapter: [scasella91/qwen3-30b-a3b-answer-diversity-lora](https://huggingface.co/scasella91/qwen3-30b-a3b-answer-diversity-lora) on the Hugging Face Hub. Load it on the base model with `peft`; no Tinker account needed.
 
+> **Correction (2026-09-23).** Earlier versions of this README described capability as "preserved", counted "distinct calculation paths" (with a CI lower bound of +0.48; the committed report has +0.40), and gave the cross-task aggregate as 0.79 → 0.43, which set a 10-task sampled baseline mean against a 3-task sampled trained mean from the truncated temperature ablation (23 of 40 cells). The summary below reports what was measured: no observed decline on small capability subsets, distinct numeric signatures, and the candidate-scored per-task means. The file's git history keeps the earlier text.
+
 ## Why
 
-Humans are bad random number generators. Ask a person for a number between 1 and 100 and the answers cluster on 7, 37, 42, 73, and round numbers get quietly avoided. LLMs trained on human text inherit the bias. The question this repo answers is whether a small parameter update can correct it without breaking the model elsewhere.
+Humans are bad random number generators. Ask a person for a number between 1 and 100 and the answers cluster on 7, 37, 42, 73, and round numbers get quietly avoided. LLMs trained on human text inherit the bias. This repo tests whether a small parameter update changes that bias, on the trained task and on untrained ones, and checks small capability subsets for a decline.
 
 ## Headline result
 
-- **Cross-task transfer.** Trained on `random_int_1_100` only. Mean TV-to-uniform across the trained task plus nine held-out tasks (color, fruit, animal, first name, word, emoji, card suit, integer 1–10, integer 1–1000) dropped from 0.79 → 0.43.
-- **Capability preserved.** MMLU flat. GSM8K accuracy flat (9.8/10 correct at T=1.0 for both vanilla and trained).
-- **Reasoning diversity.** On 25 GSM8K problems with k=10 chains of thought, the trained model produced 8.4 distinct calculation paths per problem vs the vanilla baseline's 7.4. Paired gap +1.04 [+0.48, +1.68] CI, 13 wins / 9 ties / 3 losses.
+- **Cross-task transfer.** Trained on `random_int_1_100` only. Mean TV-to-uniform across the trained task plus nine held-out tasks (color, fruit, animal, first name, word, emoji, card suit, integer 1–10, integer 1–1000) fell from 0.76 → 0.38 under candidate scoring (unweighted mean of the per-task table in the write-up).
+- **Capability checks.** No decline observed on small capability subsets (200 MMLU questions, 50 GSM8K problems). These checks are small, and the Qwen capability results are not committed to this repo. Instruction following, calibration, safety behavior and tool use were not tested.
+- **Numeric-signature diversity.** On 25 GSM8K problems with k=10 samples, the trained model produced 8.44 distinct numeric signatures (the sorted multiset of numbers in the response, final answer line excluded) per problem vs 7.40 for the original model at T=1.0: paired gap +1.04, 95% CI [+0.40, +1.68], 13 wins / 9 ties / 3 losses. Against the original model at T=1.5 (8.40) the gap was +0.04, so on this measure training and a higher temperature did about the same thing. Mean correct was 9.8/10 for both models at T=1.0. The signature is a crude proxy: it counts layout differences such as step numbering as distinct and says nothing about method.
+- **Sampled answers.** On three tasks the trained model was also sampled 50 times at T=1.0 (`bee_v0_4_temp_ablation/`); sampled TV was 0.600 (integer 1–100), 0.428 (color) and 0.250 (fruit). A perfectly uniform sampler at n = 50 has an expected TV of about 0.605 over 100 candidates and 0.251 over 20, so the sampled run cannot distinguish the trained model from uniform on integer 1–100 and fruit.
 - **Cost.** About $25 in Tinker compute for the 50-step training run.
 
 ## Second family: Llama-3.1-8B-Instruct
 
-The same recipe reproduces on a second, architecturally distinct instruct family (dense `meta-llama/Llama-3.1-8B-Instruct` vs the Qwen MoE), with capability preserved and partial, integer-concentrated transfer. Terminal state `transfer_with_preservation`. Full writeup: [reports/second_family_llama31_8b.md](reports/second_family_llama31_8b.md).
+The same recipe was repeated on a second, architecturally distinct instruct family (dense `meta-llama/Llama-3.1-8B-Instruct` vs the Qwen MoE), with narrower, integer-concentrated transfer and no observed decline on small capability checks (pipeline decision state `transfer_with_preservation`). Full writeup: [reports/second_family_llama31_8b.md](reports/second_family_llama31_8b.md).
 
 | task | split | instruct baseline TV | trained TV | Δ |
 | --- | --- | --- | --- | --- |
@@ -27,7 +30,7 @@ The same recipe reproduces on a second, architecturally distinct instruct family
 | `random_int_1_10` | held-out | 0.527 | 0.116 | **+0.411** |
 | `random_int_1_1000` | held-out | 0.386 | 0.123 | **+0.263** |
 
-Across all 9 held-out tasks: 5/9 clear the 0.05 transfer threshold, 7/9 improved, mean held-out TV drop +0.105. The same meme-numbers (42/47/73) flatten on Llama, and capability stays flat (MMLU 54.4, GSM8K flat, IFEval +6.7). Transfer is narrower than on Qwen and concentrates on the integer family, because Llama's categorical answer spaces start much closer to uniform (less to correct). Run it yourself with `--model llama_3_1_8b`.
+Across all 9 held-out tasks: 5/9 clear the 0.05 transfer threshold, 7/9 improved, mean held-out TV drop +0.105. The same meme-numbers (42/47/73) flatten on Llama. Capability subsets showed no observed decline: MMLU 54.4 → 54.4 (n = 57), GSM8K 13.3 → 13.3 (n = 30), IFEval 50.0 → 56.7 (n = 60). Transfer is narrower than on Qwen and concentrates on the integer family; first name and card suit got slightly worse (−0.008 each). Llama's categorical tasks also started closer to uniform (TV 0.13–0.50 vs 0.46–0.89 on Qwen), leaving less room to move. Run it yourself with `--model llama_3_1_8b`.
 
 ## How it works
 
@@ -37,7 +40,7 @@ The harness has three pieces.
 
 **GRPO training.** A GRPO loop on `random_int_1_100` with a reward shaped toward spread-out outputs across the answer space. The training environment is in `rng_bias/v0_4/grpo_env.py`. The training driver is `rng_bias/v0_4/train.py`. Fifty steps over Qwen3-30B-A3B-Instruct via Tinker.
 
-**GSM8K solution-path diversity.** On reasoning tasks the answer is fixed and diversity lives in the calculation path. The harness in `rng_bias/v0_4_2/` samples k chains of thought per problem, checks correctness against the ground-truth answer, and counts distinct path signatures (sorted multisets of intermediate numbers) among the correct samples per cell.
+**GSM8K numeric-signature diversity.** On a math problem the answer is fixed, so any variety is in the working. The harness in `rng_bias/v0_4_2/` samples k solutions per problem, checks correctness against the ground-truth answer, and counts distinct numeric signatures (the sorted multiset of numbers in the response, excluding the final answer line) among the correct samples per cell. The code calls these "path signatures".
 
 ## Repo map
 
@@ -59,7 +62,7 @@ rng_bias/
                         (mpnet pairwise distances saturate on short categorical outputs).
   v0_4_2/               GSM8K solution-path diversity harness.
     gsm8k.py            GSM8K sampling + ground-truth grading.
-    solution_diversity.py   Distinct-path signature (sorted multiset of intermediate numbers).
+    solution_diversity.py   Numeric signature (sorted multiset of numbers in the response; "path signature" in code).
     humaneval.py        ConditionSpec + pass@k (HumanEval ceilings saturate; kept for reproducibility).
   backends/             Local HuggingFace backend and Tinker backend.
   modeling.py           HuggingFace model loading + dotenv.
@@ -70,7 +73,7 @@ bee_v0_4_temp_ablation/
 
 bee_v0_4_2_path_diversity/
   25 GSM8K problems × 3 conditions (baseline_T=1.0, baseline_T=1.5, trained_T=1.0) × k=10 generations.
-  Backs the reasoning-diversity finding.
+  Backs the numeric-signature diversity result.
 
 bee_v0_4_2_trained_t15/
   Sanity check: trained model at T=1.5 on the same 25 GSM8K problems.
@@ -153,13 +156,14 @@ The package is `rng_bias`. Required env vars are in `.env.example`. None of them
 
 ## Limitations
 
-- **Two model families.** The headline was developed on Qwen3-30B-A3B-Instruct and reproduced on a second, architecturally distinct family, Llama-3.1-8B-Instruct (dense), where the on-task flatten and capability preservation held and transfer held *partially* — 5/9 held-out tasks, concentrated on integer ranges. Breadth of cross-task transfer is family-dependent (it tracks how much human-random bias the family carries to begin with), so the broad-transfer claim is strongest for Qwen. See [reports/second_family_llama31_8b.md](reports/second_family_llama31_8b.md). Families beyond these two are untested.
+- **Two model families.** The headline was developed on Qwen3-30B-A3B-Instruct and repeated on Llama-3.1-8B-Instruct (dense), where the trained task flattened, small capability checks showed no observed decline, and transfer was partial — 5/9 held-out tasks past the 0.05 threshold, concentrated on integer ranges. Broad cross-task transfer was seen on Qwen only. See [reports/second_family_llama31_8b.md](reports/second_family_llama31_8b.md). Families beyond these two are untested.
 - **One training task.** Training was run on `random_int_1_100` only. Other training tasks could produce different transfer profiles.
-- **Categorical answer spaces.** The nine transfer tasks are all "pick one of N" categorical. The story for free-text generation tasks is in `rng_bias/v0_4_1/` and was inconclusive. Sentence-embedding distances saturate on short outputs, so the embedding-clustering pilot did not discriminate.
-- **No head-to-head against inference-time methods.** Contrastive decoding, base-model-assisted decoding, and rejection sampling can recover diversity without changing weights. This experiment compares to temperature scaling only.
+- **Categorical answer spaces.** The nine transfer tasks are all "pick one of N" categorical, and candidate scoring ignores probability on answers outside the list. Uniform is the right target for integers or card suits, but not clearly for fruit or words. The story for free-text generation tasks is in `rng_bias/v0_4_1/` and was inconclusive. Sentence-embedding distances saturate on short outputs, so the embedding-clustering pilot did not discriminate.
+- **No head-to-head against inference-time methods.** Contrastive decoding, base-model-assisted decoding, and rejection sampling were not tested. This experiment compares to temperature scaling only.
+- **Small capability checks.** 200 MMLU questions and 50 GSM8K problems on Qwen; n = 57 / 30 / 60 (MMLU / GSM8K / IFEval) on Llama.
 - **Stage1 run truncation.** The temperature-ablation evaluation in `bee_v0_4_temp_ablation/` collected 23 of 40 planned cells (all baseline cells; trained_T=1.0 on 3 of 10 tasks). The blog's per-task table at higher sample sizes was produced by a separate transfer evaluation; rerun `rng_bias.run_bee_v0_4_transfer_eval` to regenerate it.
 
-The blog's [Bounds on the claim](https://casella.dev/blog_diversity.html) section has the formal scope.
+The write-up at [casella.dev/blog_diversity.html](https://casella.dev/blog_diversity.html) has the full scope and limitations.
 
 ## License
 
