@@ -12,7 +12,7 @@ Humans are bad random number generators. Ask a person for a number between 1 and
 
 ## Headline result
 
-- **Cross-task transfer.** Trained on `random_int_1_100` only. Mean TV-to-uniform across the trained task plus nine held-out tasks (color, fruit, animal, first name, word, emoji, card suit, integer 1–10, integer 1–1000) dropped from 0.79 → 0.43.
+- **Cross-task transfer.** Trained on `random_int_1_100` only. Mean TV-to-uniform across the trained task plus nine held-out tasks (color, fruit, animal, first name, word, emoji, card suit, integer 1–10, integer 1–1000) fell from 0.76 → 0.38 under candidate scoring (unweighted mean of the per-task table in the write-up). An earlier version of this line said 0.79 → 0.43, which set a 10-task sampled baseline against a 3-task sampled trained mean from the truncated temperature ablation (`bee_v0_4_temp_ablation`, 23 of 40 cells).
 - **Capability preserved.** MMLU flat. GSM8K accuracy flat (9.8/10 correct at T=1.0 for both vanilla and trained).
 - **Reasoning diversity.** On 25 GSM8K problems with k=10 chains of thought, the trained model produced 8.4 distinct calculation paths per problem vs the vanilla baseline's 7.4. Paired gap +1.04 [+0.48, +1.68] CI, 13 wins / 9 ties / 3 losses.
 - **Cost.** About $25 in Tinker compute for the 50-step training run.
