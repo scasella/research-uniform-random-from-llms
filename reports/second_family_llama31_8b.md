@@ -1,5 +1,10 @@
 # Second family: Llama-3.1-8B-Instruct
 
+> **Note (2026-09-23).** "Capability preserved" in this report means no observed
+> decline on small subsets (MMLU n = 57, GSM8K n = 30, IFEval n = 60). The
+> repo README and [casella.dev/blog_diversity.html](https://casella.dev/blog_diversity.html)
+> summarize this run in those terms.
+
 **Does the answer-diversity recipe — 50 GRPO steps on a single random-pick task —
 reproduce on a second, architecturally distinct instruct family?**
 
