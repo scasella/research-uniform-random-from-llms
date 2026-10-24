@@ -1,9 +1,27 @@
 # Second family: Llama-3.1-8B-Instruct
 
-> **Note (2026-09-23).** "Capability preserved" in this report means no observed
-> decline on small subsets (MMLU n = 57, GSM8K n = 30, IFEval n = 60). The
-> repo README and [casella.dev/blog_diversity.html](https://casella.dev/blog_diversity.html)
-> summarize this run in those terms.
+> **Correction (2026-10-24; expands the note of 2026-09-23).** Several readings
+> in this report are superseded. The run's numbers are unchanged, and commit
+> c11534f keeps the original text. The current account is in the write-up at
+> [casella.dev/blog_diversity.html](https://casella.dev/blog_diversity.html).
+>
+> - **"Shallowly encoded and cheaply correctable"** (opening section). A 50-step
+>   LoRA changes the behavior; it does not show where the behavior is encoded.
+> - **"Reproducible across architectures"** (comparison section). This rests on
+>   two model families, and on Llama the transfer was narrow: 5 of 9 held-out
+>   tasks cleared the 0.05 threshold, and the large moves were on the two other
+>   integer ranges.
+> - **"Capability preserved"** (Result 3 and the comparison table). This means
+>   only that no decline was observed on MMLU n = 57 (one question per subject),
+>   GSM8K n = 30, and a 60-prompt check built from four hand-written
+>   instructions. The code labels that check IFEval, but it is not the IFEval
+>   benchmark.
+> - **The Qwen "0.79 → 0.43" row** (comparison table). It set a 10-task sampled
+>   baseline mean against a 3-task sampled trained mean. The candidate-scored
+>   Qwen means are 0.76 → 0.38 over all ten tasks and 0.74 → 0.38 over the nine
+>   held out.
+> - **The Artifacts section** lists `bee_v0_4_llama31_8b*/` folders. They are not
+>   committed to this repo.
 
 **Does the answer-diversity recipe — 50 GRPO steps on a single random-pick task —
 reproduce on a second, architecturally distinct instruct family?**

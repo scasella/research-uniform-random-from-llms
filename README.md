@@ -15,7 +15,7 @@ Humans are bad random number generators. Ask a person for a number between 1 and
 ## Headline result
 
 - **Cross-task transfer.** Trained on `random_int_1_100` only. Mean TV-to-uniform across the trained task plus nine held-out tasks (color, fruit, animal, first name, word, emoji, card suit, integer 1–10, integer 1–1000) fell from 0.76 → 0.38 under candidate scoring (unweighted mean of the per-task table in the write-up).
-- **Capability checks.** No decline observed on small capability subsets (200 MMLU questions, 50 GSM8K problems). These checks are small, and the Qwen capability results are not committed to this repo. Instruction following, calibration, safety behavior and tool use were not tested.
+- **Capability checks.** No decline observed on small capability subsets (a subject-stratified MMLU subset, 200 questions requested; 50 GSM8K problems). These checks are small, and the Qwen capability results are not committed to this repo. Instruction following, calibration, safety behavior and tool use were not tested.
 - **Numeric-signature diversity.** On 25 GSM8K problems with k=10 samples, the trained model produced 8.44 distinct numeric signatures (the sorted multiset of numbers in the response, final answer line excluded) per problem vs 7.40 for the original model at T=1.0: paired gap +1.04, 95% CI [+0.40, +1.68], 13 wins / 9 ties / 3 losses. Against the original model at T=1.5 (8.40) the gap was +0.04, so on this measure training and a higher temperature did about the same thing. Mean correct was 9.8/10 for both models at T=1.0. The signature is a crude proxy: it counts layout differences such as step numbering as distinct and says nothing about method.
 - **Sampled answers.** On three tasks the trained model was also sampled 50 times at T=1.0 (`bee_v0_4_temp_ablation/`); sampled TV was 0.600 (integer 1–100), 0.428 (color) and 0.250 (fruit). A perfectly uniform sampler at n = 50 has an expected TV of about 0.605 over 100 candidates and 0.251 over 20, so the sampled run cannot distinguish the trained model from uniform on integer 1–100 and fruit.
 - **Cost.** About $25 in Tinker compute for the 50-step training run.
@@ -30,7 +30,7 @@ The same recipe was repeated on a second, architecturally distinct instruct fami
 | `random_int_1_10` | held-out | 0.527 | 0.116 | **+0.411** |
 | `random_int_1_1000` | held-out | 0.386 | 0.123 | **+0.263** |
 
-Across all 9 held-out tasks: 5/9 clear the 0.05 transfer threshold, 7/9 improved, mean held-out TV drop +0.105. The same meme-numbers (42/47/73) flatten on Llama. Capability subsets showed no observed decline: MMLU 54.4 → 54.4 (n = 57), GSM8K 13.3 → 13.3 (n = 30), IFEval 50.0 → 56.7 (n = 60). Transfer is narrower than on Qwen and concentrates on the integer family; first name and card suit got slightly worse (−0.008 each). Llama's categorical tasks also started closer to uniform (TV 0.13–0.50 vs 0.46–0.89 on Qwen), leaving less room to move. Run it yourself with `--model llama_3_1_8b`.
+Across all 9 held-out tasks: 5/9 clear the 0.05 transfer threshold, 7/9 improved, mean held-out TV drop +0.105. The same meme-numbers (42/47/73) flatten on Llama. Capability subsets showed no observed decline: MMLU 54.4 → 54.4 (n = 57), GSM8K 13.3 → 13.3 (n = 30), a 60-prompt four-instruction check that the code labels IFEval (not the IFEval benchmark) 50.0 → 56.7. Transfer is narrower than on Qwen and concentrates on the integer family; first name and card suit got slightly worse (−0.008 each). Llama's categorical tasks also started closer to uniform (TV 0.13–0.50 vs 0.46–0.89 on Qwen), leaving less room to move. Run it yourself with `--model llama_3_1_8b`.
 
 ## How it works
 
@@ -130,9 +130,9 @@ git clone https://github.com/thinking-machines-lab/tinker-cookbook && pip instal
 cp .env.example .env
 # Edit .env and add your TINKER_API_KEY (free credits at https://tinker.thinkingmachines.ai)
 
-python tinker_bee_v0_4.py phase_0    # base-vs-instruct gap diagnostic
-python tinker_bee_v0_4.py stage1     # 50 GRPO steps on random_int_1_100
-python tinker_bee_v0_4.py audit      # gate check
+python tinker_bee_v0_4.py --stage phase_0    # base-vs-instruct gap diagnostic
+python tinker_bee_v0_4.py --stage 1          # 50 GRPO steps on random_int_1_100
+python tinker_bee_v0_4.py --stage audit      # gate check
 ```
 
 The 50-step training run produces a sampler-weights checkpoint of the form `tinker://<workspace>/sampler_weights/v0_4_stage1_step_50`. The transfer evaluation and the GSM8K diversity harness both accept that checkpoint as `--checkpoint-path`.
@@ -160,7 +160,7 @@ The package is `rng_bias`. Required env vars are in `.env.example`. None of them
 - **One training task.** Training was run on `random_int_1_100` only. Other training tasks could produce different transfer profiles.
 - **Categorical answer spaces.** The nine transfer tasks are all "pick one of N" categorical, and candidate scoring ignores probability on answers outside the list. Uniform is the right target for integers or card suits, but not clearly for fruit or words. The story for free-text generation tasks is in `rng_bias/v0_4_1/` and was inconclusive. Sentence-embedding distances saturate on short outputs, so the embedding-clustering pilot did not discriminate.
 - **No head-to-head against inference-time methods.** Contrastive decoding, base-model-assisted decoding, and rejection sampling were not tested. This experiment compares to temperature scaling only.
-- **Small capability checks.** 200 MMLU questions and 50 GSM8K problems on Qwen; n = 57 / 30 / 60 (MMLU / GSM8K / IFEval) on Llama.
+- **Small capability checks.** A subject-stratified MMLU subset (200 questions requested) and 50 GSM8K problems on Qwen; n = 57 / 30 / 60 (MMLU / GSM8K / a four-instruction check the code labels IFEval, not the IFEval benchmark) on Llama.
 - **Stage1 run truncation.** The temperature-ablation evaluation in `bee_v0_4_temp_ablation/` collected 23 of 40 planned cells (all baseline cells; trained_T=1.0 on 3 of 10 tasks). The blog's per-task table at higher sample sizes was produced by a separate transfer evaluation; rerun `rng_bias.run_bee_v0_4_transfer_eval` to regenerate it.
 
 The write-up at [casella.dev/blog_diversity.html](https://casella.dev/blog_diversity.html) has the full scope and limitations.
