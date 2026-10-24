@@ -3,8 +3,7 @@
 > **Correction (2026-10-24; expands the note of 2026-09-23).** Several readings
 > in this report are superseded. The run's numbers are unchanged, and commit
 > c11534f keeps the original text. The current account is in the write-up at
-> [casella.dev/blog_diversity.html](https://casella.dev/blog_diversity.html)
-> and in the repo README.
+> [casella.dev/blog_diversity.html](https://casella.dev/blog_diversity.html).
 >
 > - **"Shallowly encoded and cheaply correctable"** (opening section). A 50-step
 >   LoRA changes the behavior; it does not show where the behavior is encoded.
