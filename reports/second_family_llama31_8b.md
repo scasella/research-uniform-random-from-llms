@@ -9,7 +9,8 @@
 >   LoRA changes the behavior; it does not show where the behavior is encoded.
 > - **"Reproducible across architectures"** (comparison section). This rests on
 >   two model families, and on Llama the transfer was narrow: 5 of 9 held-out
->   tasks cleared the 0.05 threshold, mostly the integer ranges.
+>   tasks cleared the 0.05 threshold, and the large moves were on the two other
+>   integer ranges.
 > - **"Capability preserved"** (Result 3 and the comparison table). This means
 >   only that no decline was observed on MMLU n = 57 (one question per subject),
 >   GSM8K n = 30, and a 60-prompt check built from four hand-written
