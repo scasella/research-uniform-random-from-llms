@@ -130,9 +130,9 @@ git clone https://github.com/thinking-machines-lab/tinker-cookbook && pip instal
 cp .env.example .env
 # Edit .env and add your TINKER_API_KEY (free credits at https://tinker.thinkingmachines.ai)
 
-python tinker_bee_v0_4.py phase_0    # base-vs-instruct gap diagnostic
-python tinker_bee_v0_4.py stage1     # 50 GRPO steps on random_int_1_100
-python tinker_bee_v0_4.py audit      # gate check
+python tinker_bee_v0_4.py --stage phase_0    # base-vs-instruct gap diagnostic
+python tinker_bee_v0_4.py --stage 1          # 50 GRPO steps on random_int_1_100
+python tinker_bee_v0_4.py --stage audit      # gate check
 ```
 
 The 50-step training run produces a sampler-weights checkpoint of the form `tinker://<workspace>/sampler_weights/v0_4_stage1_step_50`. The transfer evaluation and the GSM8K diversity harness both accept that checkpoint as `--checkpoint-path`.
